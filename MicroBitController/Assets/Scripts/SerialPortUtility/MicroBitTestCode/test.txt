@@ -1,0 +1,70 @@
+#include "mbed.h"
+Serial pc(USBTX, USBRX);
+int pointer =0;
+int currentData =0;
+char sumBuffer[2];
+
+int main() 
+{
+    pc.baud(57600);
+    while (true)
+    {
+/*        pc.printf("Test\n");*/
+        while(pc.readable())
+        {
+            int buffer[32];
+            currentData = pc.getc();
+            buffer[pointer] = currentData;
+            pointer+=1;
+            if(buffer[0] == 220)
+            {
+                while(currentData != 255)
+                {
+                    if(pc.readable())
+                    {
+                        currentData = pc.getc();
+                        buffer[pointer] = currentData;
+                        pointer+=1;
+                    }
+                }
+                pointer =0;
+                
+                short sum =0;
+                for(int i=1;i<3;i++)
+                {
+                    sumBuffer[i-1] = buffer[i];
+                }
+                for(int i=3;i<9;i++)
+                {
+                    sum += buffer[i];
+                }
+                
+                //byte[2]をShortに変換
+                if(*(short *)&sumBuffer == (short)sum)
+                {
+                    //本来ならここでColorのint配列の中身を変更する処理
+                    pc.printf("Complete:");
+                    for(int i=3;i<9;i++)
+                    {
+                        pc.printf("%d/",buffer[i]);
+                    }
+                    pc.printf("\n");
+                }
+                else
+                {
+                    //本来ならここで処理をはじく
+                    pc.printf("BadData...:");
+                    for(int i=3;i<9;i++)
+                    {
+                        pc.printf("%d/",buffer[i]);
+                    }
+                    pc.printf("\n");
+                }
+                
+                //本来ならここでColorのint配列を使って発光させる処理
+                //hogeShining();
+                //
+            }
+        }
+    }
+}

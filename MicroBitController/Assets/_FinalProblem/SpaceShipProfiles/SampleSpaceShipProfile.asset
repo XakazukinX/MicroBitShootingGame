@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff0ec2094d6266c4f94aae7c0da3c89f, type: 3}
+  m_Name: SampleSpaceShipProfile
+  m_EditorClassIdentifier: 
+  spaceShipName: SampleSpaceShip
+  spaceShipExplanation: "\u30B5\u30F3\u30D7\u30EB\u306E\u81EA\u6A5F\u3060\u3088"
+  moveSpeedLevel: 3
+  rotateSpeedLevel: 3
+  bulletName: SampleBullet
+  bulletExplanation: "\u30B5\u30F3\u30D7\u30EB\u306EBullet\u3060\u3088\n\u30B5\u30F3\u30D7\u30EB\u30B5\u30F3\u30D7\u30EB\u30B5\u30F3\u30D7\u30EB\n\u30B5\u30F3\u30D7\u30EB\u30B5\u30F3\u30D7\u30EB\u30B5\u30F3\u30D7\u30EB\u30B5\u30F3\u30D7\u30EB\u30B5\u30F3\u30D7\u30EB\u30B5\u30F3\u30D7\u30EB"
+  spaceShipObject: {fileID: 5726606576319163819, guid: 797401e7bdfa1bd48bd8a938e6140502,
+    type: 3}

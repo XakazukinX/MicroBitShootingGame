@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff0ec2094d6266c4f94aae7c0da3c89f, type: 3}
+  m_Name: BlueSpaceShipProfile
+  m_EditorClassIdentifier: 
+  spaceShipName: BlueSpaceShip
+  spaceShipExplanation: "\u30C7\u30D5\u30A9\u306E\u81EA\u6A5F\u3068\u6027\u80FD\u306F\u540C\u3058.\u9752\u3044"
+  moveSpeedLevel: 3
+  rotateSpeedLevel: 3
+  bulletName: NormalBullet
+  bulletExplanation: "\u901A\u5E38\u306EBullet\n\u6B63\u9762\u65B9\u5411\u306B\u5411\u3051\u3066\u4F4E\u901F\u3067\u4E00\u767A\u6483\u3064\u3002\n\u88C5\u586B\u3067\u304D\u308B\u5F3E\u6570\u306F10"
+  spaceShipObject: {fileID: 1118739650143369577, guid: 2bebea5d72194dd4b85c61422fa2f3a2,
+    type: 3}
