@@ -10,7 +10,7 @@ PrefabInstance:
     - target: {fileID: 5726606576319163819, guid: 797401e7bdfa1bd48bd8a938e6140502,
         type: 3}
       propertyPath: m_Name
-      value: '[Player]SpaceShipTestBlue'
+      value: '[Player]SpaceShipTestBlue Variant'
       objectReference: {fileID: 0}
     - target: {fileID: 5726606576319163820, guid: 797401e7bdfa1bd48bd8a938e6140502,
         type: 3}
@@ -92,5 +92,10 @@ PrefabInstance:
       propertyPath: m_AssetId
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 1681505554, guid: 797401e7bdfa1bd48bd8a938e6140502, type: 3}
+      propertyPath: BulletPrefabs
+      value: 
+      objectReference: {fileID: 5320637231628211592, guid: d396d013f3427db4fb1eb20aad7ebb15,
+        type: 3}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 797401e7bdfa1bd48bd8a938e6140502, type: 3}

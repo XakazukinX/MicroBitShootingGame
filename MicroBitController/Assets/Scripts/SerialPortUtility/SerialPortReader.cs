@@ -5,16 +5,21 @@ using System.IO.Ports;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using Object = System.Object;
 
 namespace SerialPortUtility
 {
     public class SerialPortReader
     {
         private SynchronizationContext _mainContext;
-        public  Action<SerialPort, byte> OnStreamRead;
+        public  Action<SerialPort, byte[]> OnStreamRead;
         private SerialPort _serialStream;
         private bool _isSerialReadRunning;
 
+        private byte[] microBitDataBuffer = new byte[256];
+        private byte[] serialDataBuffer = new byte[4];
+        private int dataCount = 0;
+         
         public SerialPortReader(SerialPort serialStream)
         {
             _serialStream = serialStream;
@@ -59,15 +64,56 @@ namespace SerialPortUtility
                 if (_serialStream.BytesToRead == 0) continue;
                 try
                 {
-                    while (_serialStream.BytesToRead != 0)
+                    var readData = (byte) _serialStream.ReadByte();
+/*
+                    Debug.Log((char)readData);
+*/
+                    microBitDataBuffer[dataCount] = readData;
+                    dataCount += 1;
+//                    Debug.Log(readData);
+                    
+/*                    var tes = "";
+                    for (int i = 0; i < dataCount; i++)
                     {
-                        var readData = (byte) _serialStream.ReadByte();
-                        _mainContext.Post(_ =>
+                        tes += $"[{microBitDataBuffer[i]}]";
+                    }
+                        
+                    Debug.Log(tes);*/
+                    if (readData == 255 && dataCount >= 4)
+                    {
+                        if (microBitDataBuffer[dataCount - 4] == 200)
+                        {
+                            Buffer.BlockCopy(microBitDataBuffer, dataCount - 4, serialDataBuffer, 0, 4);
+/*                            var tes = "";
+                            for (int i = 0; i <= dataCount; i++)
                             {
-                                //1byte受け取ったらアクションを発火する
-                                OnStreamRead?.Invoke(_serialStream, readData);
+                                tes += $"[{microBitDataBuffer[i]}]";
                             }
-                            , null);
+                            Debug.Log(tes);*/
+
+/*                            Debug.Log(tes);*/
+                            _mainContext.Post(_ =>
+                                {
+                                    //1byte受け取ったらアクションを発火する
+                                    OnStreamRead?.Invoke(_serialStream, serialDataBuffer);
+                                }
+                                , null);
+                                
+/*                                microBitDataBuffer= new byte[256];*/
+                        }
+                        
+                        dataCount = 0;
+                    }
+                    else
+                    {
+                        microBitDataBuffer.Initialize();
+
+/*                        var tes = "";
+                        for (int i = 0; i < dataCount; i++)
+                        {
+                            tes += $"[{microBitDataBuffer[i]}]";
+                        }
+                        Debug.Log(tes);*/
                     }
                 }
                 catch (Exception e)

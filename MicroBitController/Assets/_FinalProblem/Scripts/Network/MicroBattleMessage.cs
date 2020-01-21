@@ -38,6 +38,12 @@ public class MicroBattleMessage
     {
         public int playerId;
     }
+    
+    [System.Serializable]
+    public class PlayerDamageMessageData : MessageBase
+    {
+        public int playerId;
+    }
 
     [System.Serializable]
     public class SelectedPlayerData : MessageBase

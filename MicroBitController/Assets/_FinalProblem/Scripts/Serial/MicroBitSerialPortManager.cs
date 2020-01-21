@@ -2,11 +2,13 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO.Ports;
+using _PCFinal;
 using SerialPortUtility;
 using UnityEngine;
 
 public class MicroBitSerialPortManager : MonoBehaviour
 {
+    [SerializeField] private SerialMessagePresenter _presenter;
     private SerialPortSetting _serialPortSetting;
     public SerialPortSetting SerialPortSetting
     {
@@ -19,7 +21,7 @@ public class MicroBitSerialPortManager : MonoBehaviour
     public static SerialPortReader _serialPortReader;
     public static SerialPortWriter _serialPortWriter;
 
-    private bool isTestMode = false;
+    public bool isTestMode = false;
     private SerialPortSetting testModeSetting;
 
     public void OnEnable()
@@ -41,7 +43,7 @@ public class MicroBitSerialPortManager : MonoBehaviour
             serialStream.Open();
             serialStream.DiscardInBuffer();
             serialStream.DiscardOutBuffer();
-            
+
         }
         catch (Exception e)
         {
@@ -55,6 +57,9 @@ public class MicroBitSerialPortManager : MonoBehaviour
         StartSerialRead();
         _serialPortWriter = new SerialPortWriter(serialStream);
         DontDestroyOnLoad(this.gameObject);
+        
+        _presenter.InitPresenter();
+        Debug.Log("シリアルポートのOpenに成功しました");
     }
     
     //別スレッドでSerialReadし続けるモードを起動する

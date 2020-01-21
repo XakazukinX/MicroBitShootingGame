@@ -38,7 +38,8 @@ namespace _PCFinal
 
         private void OnEnable()
         {
-            
+            SerialMessagePresenter.OnGetSystemButtonB += GetSystemButtonB;
+            SerialMessagePresenter.OnGetSystemButtonC += GetSystemButtonC;
         }
 
         private void OnDestroy()
@@ -46,10 +47,21 @@ namespace _PCFinal
             selectSpaceShipButton.onClick.RemoveListener(OnClickSelectSpaceShipButton);
             backToSelectSpaceShipButton.onClick.RemoveListener(OnClickBackToSpaceShipSelectButton);
             startGameAndSpawnPlayerButton.onClick.RemoveListener(OnClickSpawnPlayerAndStartButton);
-            
+
+            SerialMessagePresenter.OnGetSystemButtonB -= GetSystemButtonB;
+            SerialMessagePresenter.OnGetSystemButtonC -= GetSystemButtonC;
 /*            ClearPlayerControllerLists();*/
         }
+        
+        private void GetSystemButtonB()
+        {
+            RotateSpaceShipTable(1);
+        }
 
+        private void GetSystemButtonC()
+        {
+            OnClickSelectSpaceShipButton();
+        }
 
         private void Update()
         {
@@ -187,7 +199,8 @@ namespace _PCFinal
         {
             foreach (var controller in playerControllers)
             {
-                Destroy(controller.gameObject);
+                controller.Dispose();
+/*                Destroy(controller.gameObject);*/
             }
             
             UIParentTransform.gameObject.SetActive(false);

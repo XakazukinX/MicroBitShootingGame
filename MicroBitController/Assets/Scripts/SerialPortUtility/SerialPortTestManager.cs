@@ -16,13 +16,13 @@ public class SerialPortTestManager : SerialPortManager
         _serialPortReader.OnStreamRead += OnGetData;
     }
 
-    public void OnGetData(SerialPort serialPort, byte readData)
+    public void OnGetData(SerialPort serialPort, byte[] readData)
     {
-        char readChar = (char) readData;
+/*        char readChar = (char) readData;*/
 /*
         Debug.Log(readChar);
 */
-        if (readChar == '\n')
+/*        if (readChar == '\n')
         {
             Debug.Log(builder.ToString());
             builder.Clear();
@@ -30,7 +30,7 @@ public class SerialPortTestManager : SerialPortManager
         else
         {
             builder.Append(readChar);
-        }
+        }*/
     }
     
     private void Update()

@@ -10,7 +10,7 @@ PrefabInstance:
     - target: {fileID: 5726606576319163819, guid: 797401e7bdfa1bd48bd8a938e6140502,
         type: 3}
       propertyPath: m_Name
-      value: '[Player]SpaceShipNormal'
+      value: '[Player]SpaceShipNormal Variant'
       objectReference: {fileID: 0}
     - target: {fileID: 5726606576319163820, guid: 797401e7bdfa1bd48bd8a938e6140502,
         type: 3}
@@ -67,6 +67,11 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5726606576319163822, guid: 797401e7bdfa1bd48bd8a938e6140502,
+        type: 3}
+      propertyPath: _poolManager
+      value: 
+      objectReference: {fileID: 3293951597707380380}
     - target: {fileID: 5726606576319163823, guid: 797401e7bdfa1bd48bd8a938e6140502,
         type: 3}
       propertyPath: m_SceneId
@@ -77,5 +82,30 @@ PrefabInstance:
       propertyPath: m_AssetId
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 1681505554, guid: 797401e7bdfa1bd48bd8a938e6140502, type: 3}
+      propertyPath: BulletPrefabs
+      value: 
+      objectReference: {fileID: 4642057313735292362, guid: 53d8f9dc90a1dd949a883f331e287cb6,
+        type: 3}
+    - target: {fileID: 360728945, guid: 797401e7bdfa1bd48bd8a938e6140502, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 360728945, guid: 797401e7bdfa1bd48bd8a938e6140502, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 797401e7bdfa1bd48bd8a938e6140502, type: 3}
+--- !u!114 &3293951597707380380 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1681505554, guid: 797401e7bdfa1bd48bd8a938e6140502,
+    type: 3}
+  m_PrefabInstance: {fileID: 3293951598309702542}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7b81a71d72539141a8ebdb5316b2f80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

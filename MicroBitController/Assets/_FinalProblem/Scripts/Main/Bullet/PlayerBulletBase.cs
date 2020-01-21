@@ -5,9 +5,11 @@ using UnityEngine;
 
 public class PlayerBulletBase : MonoBehaviour
 {
+    private Animator bulletAnimator;
+    public int bulletAuthorPlayerId = 0;
     [SerializeField] private float bulletSpeed = 1.0f;
     [SerializeField] private float disableTime = 3.0f;
-
+    
     private Vector3 bulletDirection;
     private WaitForSeconds _disableWait;
 
@@ -15,6 +17,8 @@ public class PlayerBulletBase : MonoBehaviour
     
     public virtual void OnEnable()
     {
+        bulletAnimator = GetComponent<Animator>();
+        
         _disableWait = new WaitForSeconds(disableTime);
         isActive = true;
         StartCoroutine(DisableCountDownCoroutine());
@@ -54,6 +58,26 @@ public class PlayerBulletBase : MonoBehaviour
         transform.localPosition += moveDirection;
     }
     
+    public virtual void HitBullet()
+    {
+//        Debug.Log("hit");
+        bulletAnimator.Play("Hit",0,0);
+        StartCoroutine(AnimationWait());
+    }
+
+    private IEnumerator AnimationWait()
+    {
+        while (bulletAnimator.GetCurrentAnimatorStateInfo(0).normalizedTime<1.0f)
+        {
+           // Debug.Log("Hit Animation Playing");
+            yield return null;
+        }
+
+        bulletAnimator.Play("default", 0, 0);
+        //Debug.Log("Return Default");
+        this.gameObject.SetActive(false);
+    }
+
     private Vector3 GetBulletDirection(float moveSpeed)
     {
         var angleDir = transform.localEulerAngles.z * (Mathf.PI / 180.0f);

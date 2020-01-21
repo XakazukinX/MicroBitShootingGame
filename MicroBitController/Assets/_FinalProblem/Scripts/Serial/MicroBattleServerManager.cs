@@ -9,9 +9,13 @@ namespace _PCFinal
     public class MicroBattleServerManager : MonoBehaviour
     {
         [SerializeField] private MicroBattleNetworkManager _networkManager;
+        private Dictionary<int, PlayerController> spaceShipDictionary = new Dictionary<int, PlayerController>();
+        
         
         private void OnEnable()
         {
+            //辞書の初期化
+            spaceShipDictionary = new Dictionary<int, PlayerController>();
             #region ハンドラの登録
 
             //移動受信ハンドラ
@@ -27,6 +31,9 @@ namespace _PCFinal
 
             //SpaceShipセレクト受信ハンドラ
             NetworkServer.RegisterHandler<MicroBattleMessage.SelectedPlayerData>(ReceiveSelectedPlayer);
+            
+            //SpaceShipセレクト受信ハンドラ
+            NetworkServer.RegisterHandler<MicroBattleMessage.PlayerDamageMessageData>(ReceiveClientDamageMessage);
 
             #endregion
         }
@@ -61,6 +68,26 @@ namespace _PCFinal
         {
             NetworkServer.SendToAll(message);
         }
+        
+        private void ReceiveClientDamageMessage(NetworkConnection conn,
+            MicroBattleMessage.PlayerDamageMessageData message)
+        {
+            spaceShipDictionary[conn.connectionId].playerHp -= 1;
+            if (spaceShipDictionary[conn.connectionId].playerHp > 0)
+            {
+                //クソ設計
+                var task = spaceShipDictionary[conn.connectionId].Damage();
+            }
+            else
+            {
+                //Hp0以下だったらメッセ発行して殺す
+                var deathMessage = new MicroBattleMessage.PlayerDeathMessageData
+                {
+                    playerId = conn.connectionId
+                };
+                NetworkServer.SendToAll(deathMessage);
+            }
+        }
 
         private void ReceiveSelectedPlayer(NetworkConnection conn, MicroBattleMessage.SelectedPlayerData message)
         {
@@ -68,6 +95,8 @@ namespace _PCFinal
             var obj = Instantiate(spaceShip);
             var pc = obj.GetComponent<PlayerController>();
             pc.playerNumber = conn.connectionId;
+            //辞書に登録
+            spaceShipDictionary.Add(conn.connectionId,pc);
             NetworkServer.Spawn(obj, conn);
             
 //            pc.Init();

@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Cinemachine;
 using Mirror;
+using UniRx;
+using UniRx.Async;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -10,29 +13,39 @@ namespace _PCFinal
 { 
     public class PlayerController : NetworkBehaviour
     {
-        [SerializeField] private BulletPoolManager _poolManager;
+        [SerializeField] private BulletPoolManager poolManager;
+        [SerializeField] private PlayerInfoUIUpdater playerInfoUiUpdater;
         
-        [SyncVar]
-        public int playerNumber = -1;
+        private Animator _spaceShipAnimator;
+        [SyncVar] public int playerHp;
+        [SyncVar] public int playerNumber = -1;
+        [SyncVar] public bool isDamage;
         public bool isTestMode = true;
-        
+
+
+        [Header("このSpaceShipの能力値を指定")]
+        //これProfileから引っ張ってこれるようにした方がいいよね
+        [SerializeField] private int maxHp = 10;
         [SerializeField] private float moveValue = 0.03f;
         [SerializeField] private float rotValue = 0.03f;
-        
-        private Vector3 playerDirectionVect;
-        private Vector3 playerRotationEuler;
+        [SerializeField] private int bulletCount = 10;
+        [SerializeField] private int damageWaitTime = 2500;
 
-        private GameObject virtualCameraGameObject;
+        private Vector3 _playerDirectionVector;
+        private Vector3 _playerRotationEuler;
+
+        private GameObject _virtualCameraGameObject;
 
         //newしたくないので変数を用意
-        private Vector3 bufferPosVect;
-        private Vector3 bufferRotVect;
-        private Vector2 moveMessagePlayerPosBuffer;
+        private Vector3 _bufferPosVector;
+        private Vector3 _bufferRotVector;
+        private Vector2 _moveMessagePlayerPosBuffer;
         
         //このMessageObjectを持ち回りする
-        private readonly MicroBattleMessage.PlayerMoveMessageData moveMessage = new MicroBattleMessage.PlayerMoveMessageData();
-        private readonly MicroBattleMessage.PlayerRotateMessageData rotateMessage = new MicroBattleMessage.PlayerRotateMessageData();
-        private readonly MicroBattleMessage.PlayerAttackMessageData attackData = new MicroBattleMessage.PlayerAttackMessageData();
+        private readonly MicroBattleMessage.PlayerMoveMessageData _moveMessage = new MicroBattleMessage.PlayerMoveMessageData();
+        private readonly MicroBattleMessage.PlayerRotateMessageData _rotateMessage = new MicroBattleMessage.PlayerRotateMessageData();
+        private readonly MicroBattleMessage.PlayerAttackMessageData _attackData = new MicroBattleMessage.PlayerAttackMessageData();
+        private readonly MicroBattleMessage.PlayerDamageMessageData _damageData = new MicroBattleMessage.PlayerDamageMessageData();
         
         //弾の出現位置のオフセット。後方から射出したいときや自機からずれて射出したいときに有効に使う
         [SerializeField] private Vector3 bulletSpawnOffset;
@@ -48,18 +61,23 @@ namespace _PCFinal
         {
             base.OnStartClient();
             
-            virtualCameraGameObject = GetComponentInChildren<CinemachineVirtualCamera>(true).gameObject;
+            _virtualCameraGameObject = GetComponentInChildren<CinemachineVirtualCamera>(true).gameObject;
             //権限持ちでない限りVirtualCameraを殺しておく
             if (!hasAuthority)
             {
-                Destroy(virtualCameraGameObject);
+                Destroy(_virtualCameraGameObject);
                 Debug.Log("DelVCam");
+                //UIの初期化
+                playerInfoUiUpdater.Dispose();
             }
             else
             {
-                virtualCameraGameObject.SetActive(true);
-                virtualCameraGameObject.transform.parent = null;
-                Debug.Log(virtualCameraGameObject.transform.position);
+                _virtualCameraGameObject.SetActive(true);
+                _virtualCameraGameObject.transform.parent = null;
+                
+                //UIの初期化
+                playerInfoUiUpdater.Init(maxHp,bulletCount);
+                Debug.Log(_virtualCameraGameObject.transform.position);
             }
             
             Init();
@@ -69,23 +87,31 @@ namespace _PCFinal
         {
             base.OnStartLocalPlayer();
         }
-        
+
+        private void OnEnable()
+        {
+            _spaceShipAnimator = GetComponent<Animator>();
+            this.ObserveEveryValueChanged(x => x.isDamage).Subscribe(damage =>
+            {
+                if (damage)
+                {
+                    _spaceShipAnimator.Play("Damage");
+                }
+                else
+                {
+                    _spaceShipAnimator.Play("default");                    
+                }
+            });
+            /*
+
+            .ObserveEveryValueChanged(x => x.isGrounded)
+            .Where(x => x)
+            .Subscribe(_ => Debug.Log("OnGrounded!"));*/
+        }
 
         private void OnDestroy()
         {
-            if (!isTestMode)
-            {
-                ClientMessageReceiver.OnReceivePlayerMoveMessage -= PlayerMove;
-                ClientMessageReceiver.OnReceivePlayerRotateMessage -= PlayerRotate;
-                ClientMessageReceiver.OnReceivePlayerAttackMessage -= PlayerAttack;
-            }
 
-            if (hasAuthority)
-            {
-                Destroy(virtualCameraGameObject);
-            }
-
-            Destroy(_poolManager.gameObject);
         }
 
         public void InitInTestMode()
@@ -95,21 +121,51 @@ namespace _PCFinal
             isTestMode = true;
             
             Debug.Log("Test Spawn");
-            
+            poolManager.InitBulletPool(bulletCount);
+
             //独立させる
-            _poolManager.transform.parent = null;
+            poolManager.transform.parent = null;
         }
 
         public void Init()
         {
+            
+            //サーバから各種メッセージを受け取った時
             ClientMessageReceiver.OnReceivePlayerMoveMessage += PlayerMove;
             ClientMessageReceiver.OnReceivePlayerRotateMessage += PlayerRotate;
             ClientMessageReceiver.OnReceivePlayerAttackMessage += PlayerAttack;
+            ClientMessageReceiver.OnReceivePlayerDeathMessage += PlayerDeath;
+
+            //シリアル通信でバイト配列を受け取った時
+            SerialMessagePresenter.OnGetPlayerMoveData += GetPlayerMoveData;
+            SerialMessagePresenter.OnGetPlayerRotData += GetPlayerRotData;
+            SerialMessagePresenter.OnGetPlayerShot += GetPlayerShot;
 
             isTestMode = false;
-            
+            poolManager.InitBulletPool(bulletCount);
+            poolManager.SetBulletAuthorId(playerNumber);
             //独立させる
-            _poolManager.transform.parent = null;
+            poolManager.transform.parent = null;
+        }
+
+        //破棄用の関数
+        public void Dispose()
+        {
+            if (!isTestMode)
+            {
+                ClientMessageReceiver.OnReceivePlayerMoveMessage -= PlayerMove;
+                ClientMessageReceiver.OnReceivePlayerRotateMessage -= PlayerRotate;
+                ClientMessageReceiver.OnReceivePlayerAttackMessage -= PlayerAttack;
+                ClientMessageReceiver.OnReceivePlayerDeathMessage -= PlayerDeath;
+            }
+
+            if (hasAuthority)
+            {
+                Destroy(_virtualCameraGameObject);
+            }
+
+            Destroy(poolManager.gameObject);
+            Destroy(this.gameObject);
         }
         
 
@@ -127,9 +183,9 @@ namespace _PCFinal
                 return;
             }
 
-            bufferPosVect.x = playerPos.x;
-            bufferPosVect.y = playerPos.y;
-            gameObject.transform.position = bufferPosVect;
+            _bufferPosVector.x = playerPos.x;
+            _bufferPosVector.y = playerPos.y;
+            gameObject.transform.position = _bufferPosVector;
 
 //            Debug.Log($"player {playerId} is move to X_{playerPos.x},Y_{playerPos.y}");
         }
@@ -148,8 +204,8 @@ namespace _PCFinal
                 return;
             }
 
-            bufferRotVect.z = rot;
-            gameObject.transform.eulerAngles = bufferRotVect;
+            _bufferRotVector.z = rot;
+            gameObject.transform.eulerAngles = _bufferRotVector;
 
 //            Debug.Log($"playerID:{playerId}/rot:{rot}");
 //            Debug.Log($"player {playerId} is move to X_{playerPos.x},Y_{playerPos.y}");
@@ -170,10 +226,23 @@ namespace _PCFinal
             }  
             
             //プールからバレットを持ってくる
-            if (_poolManager.GetFreeBullet(out var bullet))
+            if (poolManager.GetFreeBullet(out var bullet))
             {
                 ShotBullet(bullet);
             }
+        }
+        
+        private void PlayerDeath(int playerId)
+        {
+            //受け取ったplayerIDで動作させるプレイヤーかどうかを判定
+            if (playerId != playerNumber)
+            {
+                return;
+            }
+            
+            Debug.Log($"player ID :{playerId} is Death");
+            
+            this.Dispose();
         }
         
 
@@ -197,6 +266,7 @@ namespace _PCFinal
             TestControl(isTestMode);
         }
 
+        #region テスト用
         private void TestControl(bool isTest)
         {
             if (!isTest)
@@ -236,29 +306,19 @@ namespace _PCFinal
 
             if (Input.GetKeyDown(KeyCode.Z))
             {
-                if (_poolManager.GetFreeBullet(out var bullet))
+                if (poolManager.GetFreeBullet(out var bullet))
                 {
 //                    Debug.Log("Get Free Bullet");
                     ShotBullet(bullet);
                     
-                    attackData.playerId = playerNumber;
-                    NetworkClient.Send(attackData);
+                    _attackData.playerId = playerNumber;
+                    NetworkClient.Send(_attackData);
+                    
+                    playerInfoUiUpdater.ShotBullet();
                 }
             }
             
-            //
-            //PlayerAttackMessage
-            if (Input.GetKeyUp(KeyCode.Alpha2))
-            {
-                var data = new MicroBattleMessage.PlayerAttackMessageData()
-                {
-                    playerId = playerNumber,
-                };
-
-                NetworkClient.Send(data);
-            }
-        
-        
+            /*
             //PlayerUseBombMessage
             if (Input.GetKeyUp(KeyCode.Alpha3))
             {
@@ -269,46 +329,89 @@ namespace _PCFinal
                 };
 
                 NetworkClient.Send(data);
-            }
-        
-            //PlayerDeathMessage
-            if (Input.GetKeyUp(KeyCode.Alpha4))
-            {
-                var data = new MicroBattleMessage.PlayerDeathMessageData()
-                {
-                    playerId = playerNumber,
-                };
+            }*/
+        }
+        #endregion
+
+        #region MicroBitからの入力に対するフィードバック処理各種
+
+        private void GetPlayerMoveData(MoveData data)
+        {
+            Debug.Log(data);
             
-                NetworkClient.Send(data);
+            var moveVector = GetPlayerShipFront();
+
+            if (data == MoveData.Front)
+            {
+                gameObject.transform.position += (moveValue * Time.deltaTime * moveVector);
+
+            }
+            else if (data == MoveData.Back)
+            {
+                gameObject.transform.position += (-moveValue * Time.deltaTime * moveVector);
+            }
+
+            SendMoveData();
+
+        }
+        private void GetPlayerRotData(RotData data)
+        {
+            Debug.Log(data);
+            if (data == RotData.Left)
+            {
+                var playerRotation = GetPlayerShipRotation(rotValue);
+                gameObject.transform.rotation *= playerRotation;
+                SendRotateData();
+            }
+            else if (data == RotData.Right)
+            {
+                var playerRotation = GetPlayerShipRotation(-rotValue);
+                gameObject.transform.rotation *= playerRotation;
+                SendRotateData();
+            }
+        }
+        
+        private void GetPlayerShot()
+        {
+            if (poolManager.GetFreeBullet(out var bullet))
+            {
+                ShotBullet(bullet);
+                    
+                _attackData.playerId = playerNumber;
+                NetworkClient.Send(_attackData);
+                    
+                playerInfoUiUpdater.ShotBullet();
             }
         }
 
-
+        #endregion
+        
+        
         //正面方向の取得
         private Vector3 GetPlayerShipFront()
         {
             var angleDir = transform.eulerAngles.z * (Mathf.PI / 180.0f);
             
-            playerDirectionVect.x = -Mathf.Sin(angleDir);
-            playerDirectionVect.y = Mathf.Cos(angleDir);
-            playerDirectionVect.z = 0;
+            _playerDirectionVector.x = -Mathf.Sin(angleDir);
+            _playerDirectionVector.y = Mathf.Cos(angleDir);
+            _playerDirectionVector.z = 0;
 
-            return playerDirectionVect;
+            return _playerDirectionVector;
         }
         
         #region 回転計算と送信
         private Quaternion GetPlayerShipRotation(float rotWeight)
         {
-            playerRotationEuler.z = rotWeight * Time.deltaTime;
-            return Quaternion.Euler(playerRotationEuler);
+            _playerRotationEuler.z = rotWeight * Time.deltaTime;
+            return Quaternion.Euler(_playerRotationEuler);
         }
         
         private void SendRotateData()
         {
             var rot = transform.eulerAngles.z;
-            rotateMessage.playerId = playerNumber;
-            rotateMessage.mPlayerRot = rot;
-            NetworkClient.Send(rotateMessage);
+            _rotateMessage.playerId = playerNumber;
+            _rotateMessage.mPlayerRot = rot;
+            NetworkClient.Send(_rotateMessage);
         }
         #endregion
         
@@ -316,17 +419,18 @@ namespace _PCFinal
         private void SendMoveData()
         {
             var position = transform.position;
-            moveMessagePlayerPosBuffer.x = position.x;
-            moveMessagePlayerPosBuffer.y = position.y;
+            _moveMessagePlayerPosBuffer.x = position.x;
+            _moveMessagePlayerPosBuffer.y = position.y;
                 
-            moveMessage.playerId = playerNumber;
-            moveMessage.mPlayerPos = moveMessagePlayerPosBuffer;
+            _moveMessage.playerId = playerNumber;
+            _moveMessage.mPlayerPos = _moveMessagePlayerPosBuffer;
             
-            NetworkClient.Send(moveMessage);
+            NetworkClient.Send(_moveMessage);
         }
         
         #endregion
 
+        #region 弾の発射処理
         private void ShotBullet(PlayerBulletBase bullet)
         {
             var front = GetPlayerShipFront();
@@ -341,5 +445,52 @@ namespace _PCFinal
                     
             bullet.SpawnBullet(p, r);
         }
+        #endregion
+
+        #region 被弾処理
+        public void OnCollisionEnter2D(Collision2D other)
+        {
+            //文字列生成してGC走るのであとでScriptableObjectのロードとかで変数化する
+            if (other.gameObject.CompareTag("Bullet"))
+            {
+                var bullet = other.gameObject.GetComponent<PlayerBulletBase>();
+                //自分のBulletでは自分は食らわない
+                //ダメージWait中でも食らわない
+                if (bullet.bulletAuthorPlayerId == playerNumber || isDamage)
+                {
+                    return;
+                }
+                bullet.HitBullet();
+                
+                //所有権餅でないダメージ通知は送信しない
+                if (!hasAuthority)
+                {
+                    return;
+                }
+
+                playerInfoUiUpdater.DamageHp(1);
+                
+                _damageData.playerId = playerNumber;
+                NetworkClient.Send(_damageData);
+                
+            }
+        }
+        
+        public async UniTask Damage()
+        {
+            isDamage = true;
+            await UniTask.Delay(damageWaitTime);
+            isDamage = false;
+        }
+
+        private void PlayerDeath()
+        {
+            //
+            //死んだときの処理
+            //
+        }
+
+        #endregion
+        
     }
 }
