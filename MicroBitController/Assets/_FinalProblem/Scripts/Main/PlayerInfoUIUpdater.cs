@@ -7,6 +7,7 @@ public class PlayerInfoUIUpdater : MonoBehaviour
 {
     [SerializeField] private Slider _hpSlider;
     [SerializeField] private BulletGageManager _bulletGageManager;
+    [SerializeField] private Text _scoreText;
 
     private bool isInitialized = false;
 
@@ -44,6 +45,12 @@ public class PlayerInfoUIUpdater : MonoBehaviour
         if(!isInitialized) return;
         _bulletGageManager.BulletGageDown();
     }
-    
+
+    public void ScoreUpdate(int value)
+    {
+        //なんか数字によってエフェクト加えるならここで。そのためにわざわざ分離してある
+        int.TryParse(_scoreText.text,out var currentScore);
+        _scoreText.text = (currentScore + value).ToString();
+    }
 
 }

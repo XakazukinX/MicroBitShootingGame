@@ -14,14 +14,17 @@ namespace _PCFinal
     public class PlayerController : NetworkBehaviour
     {
         [SerializeField] private BulletPoolManager poolManager;
+        [SerializeField] private GameObject UIParentObject;
         [SerializeField] private PlayerInfoUIUpdater playerInfoUiUpdater;
+        [SerializeField] private GameOverUIUpdater gameOverUiUpdater;
         
         private Animator _spaceShipAnimator;
         [SyncVar] public int playerHp;
         [SyncVar] public int playerNumber = -1;
         [SyncVar] public bool isDamage;
-        public bool isTestMode = true;
-
+        private bool isTestMode = false;
+        public bool isTutorialMode = true;
+        
 
         [Header("このSpaceShipの能力値を指定")]
         //これProfileから引っ張ってこれるようにした方がいいよね
@@ -36,6 +39,8 @@ namespace _PCFinal
 
         private GameObject _virtualCameraGameObject;
 
+        private bool isSpaceShipSurvive;
+        
         //newしたくないので変数を用意
         private Vector3 _bufferPosVector;
         private Vector3 _bufferRotVector;
@@ -50,6 +55,8 @@ namespace _PCFinal
         //弾の出現位置のオフセット。後方から射出したいときや自機からずれて射出したいときに有効に使う
         [SerializeField] private Vector3 bulletSpawnOffset;
         
+        private int gameScore;
+
         public override void OnStartServer()
         {
             base.OnStartServer();
@@ -60,7 +67,7 @@ namespace _PCFinal
         public override void OnStartClient()
         {
             base.OnStartClient();
-            
+            Debug.Log("StartClient!");
             _virtualCameraGameObject = GetComponentInChildren<CinemachineVirtualCamera>(true).gameObject;
             //権限持ちでない限りVirtualCameraを殺しておく
             if (!hasAuthority)
@@ -102,6 +109,11 @@ namespace _PCFinal
                     _spaceShipAnimator.Play("default");                    
                 }
             });
+
+            this.ObserveEveryValueChanged(x => x.gameScore).Subscribe(gameScore =>
+            {
+                
+            });
             /*
 
             .ObserveEveryValueChanged(x => x.isGrounded)
@@ -111,14 +123,19 @@ namespace _PCFinal
 
         private void OnDestroy()
         {
+            if (hasAuthority)
+            {
+                Destroy(_virtualCameraGameObject);
+            }
 
+            Destroy(poolManager.gameObject);
         }
 
         public void InitInTestMode()
         {
             var vCamObj = GetComponentInChildren<CinemachineVirtualCamera>(true).gameObject;
             Destroy(vCamObj);
-            isTestMode = true;
+            isTutorialMode = true;
             
             Debug.Log("Test Spawn");
             poolManager.InitBulletPool(bulletCount);
@@ -141,33 +158,38 @@ namespace _PCFinal
             SerialMessagePresenter.OnGetPlayerRotData += GetPlayerRotData;
             SerialMessagePresenter.OnGetPlayerShot += GetPlayerShot;
 
-            isTestMode = false;
+            isTutorialMode = false;
             poolManager.InitBulletPool(bulletCount);
             poolManager.SetBulletAuthorId(playerNumber);
+            
             //独立させる
             poolManager.transform.parent = null;
+            UIParentObject.transform.parent = null;
         }
 
         //破棄用の関数
         public void Dispose()
         {
-            if (!isTestMode)
+            if (!isTutorialMode)
             {
                 ClientMessageReceiver.OnReceivePlayerMoveMessage -= PlayerMove;
                 ClientMessageReceiver.OnReceivePlayerRotateMessage -= PlayerRotate;
                 ClientMessageReceiver.OnReceivePlayerAttackMessage -= PlayerAttack;
                 ClientMessageReceiver.OnReceivePlayerDeathMessage -= PlayerDeath;
             }
-
+            
+            //所有権を持っている場合はSpawnerを再生成する
             if (hasAuthority)
             {
-                Destroy(_virtualCameraGameObject);
+                gameOverUiUpdater.Init(gameScore);
+                isSpaceShipSurvive = false;
+                Destroy(this.gameObject);
             }
-
-            Destroy(poolManager.gameObject);
-            Destroy(this.gameObject);
+            else
+            {
+                Destroy(this.gameObject);
+            }
         }
-        
 
         private void PlayerMove(int playerId,Vector2 playerPos)
         {
@@ -251,18 +273,21 @@ namespace _PCFinal
             //テストモード時はこの条件はスルー
             //そもそもSpawnされないので他のPlayerはテストモード時にローカル空間内に現れない。
             //ので、この条件式でも大丈夫だが、直感的でない
-            if (!isTestMode && !hasAuthority)
+            if (!hasAuthority)
             {
                 //権限を持っていなければ操作できない
                 return;
             }
-
             //完全にデバッグ用
             if (Input.GetKeyUp(KeyCode.Space))
             {
                 isTestMode = !isTestMode;
             }
-            
+            if (!isTestMode)
+            {
+                return;
+            }
+
             TestControl(isTestMode);
         }
 
@@ -301,6 +326,20 @@ namespace _PCFinal
                 var moveVector = GetPlayerShipFront();
                 gameObject.transform.position += (-moveValue * Time.deltaTime * moveVector);
                 SendMoveData();
+            }
+            
+            if (Input.GetKeyDown(KeyCode.Alpha0))
+            {
+                //所有権餅でないダメージ通知は送信しない
+                if (!hasAuthority)
+                {
+                    return;
+                }
+
+                playerInfoUiUpdater.DamageHp(1);
+                
+                _damageData.playerId = playerNumber;
+                NetworkClient.Send(_damageData);
             }
 
 
@@ -398,6 +437,14 @@ namespace _PCFinal
 
             return _playerDirectionVector;
         }
+        
+        //Score加算
+        private void AddScore(int addValue)
+        {
+            gameScore += addValue;
+            playerInfoUiUpdater.ScoreUpdate(addValue);
+        }
+        
         
         #region 回転計算と送信
         private Quaternion GetPlayerShipRotation(float rotWeight)

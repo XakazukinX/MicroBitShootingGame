@@ -10,8 +10,12 @@ namespace _PCFinal
     {
         [SerializeField] private MicroBattleNetworkManager _networkManager;
         private Dictionary<int, PlayerController> spaceShipDictionary = new Dictionary<int, PlayerController>();
-        
-        
+
+        public void Update()
+        {
+           // Debug.Log($"SpaceShipDictCount {spaceShipDictionary.Count}");
+        }
+
         private void OnEnable()
         {
             //辞書の初期化
@@ -85,18 +89,22 @@ namespace _PCFinal
                 {
                     playerId = conn.connectionId
                 };
+                
+                spaceShipDictionary.Remove(conn.connectionId);
+                Debug.Log($"{spaceShipDictionary.TryGetValue(conn.connectionId, out var val)}");
                 NetworkServer.SendToAll(deathMessage);
             }
         }
 
         private void ReceiveSelectedPlayer(NetworkConnection conn, MicroBattleMessage.SelectedPlayerData message)
         {
+            Debug.Log("Select Player!");
             var spaceShip = _networkManager.playerSpaceShipProfiles[message.selectedIndex].spaceShipObject;
             var obj = Instantiate(spaceShip);
             var pc = obj.GetComponent<PlayerController>();
             pc.playerNumber = conn.connectionId;
             //辞書に登録
-            spaceShipDictionary.Add(conn.connectionId,pc);
+            spaceShipDictionary.Add(conn.connectionId, pc);
             NetworkServer.Spawn(obj, conn);
             
 //            pc.Init();

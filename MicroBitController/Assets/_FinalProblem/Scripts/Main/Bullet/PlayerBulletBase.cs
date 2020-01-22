@@ -7,6 +7,7 @@ public class PlayerBulletBase : MonoBehaviour
 {
     private Animator bulletAnimator;
     public int bulletAuthorPlayerId = 0;
+    [SerializeField] private AudioSource shotSound;
     [SerializeField] private float bulletSpeed = 1.0f;
     [SerializeField] private float disableTime = 3.0f;
     
@@ -21,6 +22,7 @@ public class PlayerBulletBase : MonoBehaviour
         
         _disableWait = new WaitForSeconds(disableTime);
         isActive = true;
+        shotSound.Play();
         StartCoroutine(DisableCountDownCoroutine());
     }
 

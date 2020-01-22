@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using _PCFinal;
+using Cinemachine;
 using DG.Tweening;
 using Mirror;
 using UnityEngine;
@@ -36,11 +37,25 @@ namespace _PCFinal
         private bool isSpaceShipSelectMode = true;
         private int _selectedIndex = 0;
 
-        private void OnEnable()
+        public enum PlayerSelectState
         {
+            Select,
+            Confirm
+        }
+
+        private PlayerSelectState _selectState;
+
+        private void Start()
+        {
+            //各種ボタンにコールバックイベントを追加
+            selectSpaceShipButton.onClick?.AddListener(OnClickSelectSpaceShipButton);
+            backToSelectSpaceShipButton.onClick?.AddListener(OnClickBackToSpaceShipSelectButton);
+            startGameAndSpawnPlayerButton.onClick?.AddListener(OnClickSpawnPlayerAndStartButton);
+            
             SerialMessagePresenter.OnGetSystemButtonB += GetSystemButtonB;
             SerialMessagePresenter.OnGetSystemButtonC += GetSystemButtonC;
         }
+        
 
         private void OnDestroy()
         {
@@ -55,12 +70,26 @@ namespace _PCFinal
         
         private void GetSystemButtonB()
         {
-            RotateSpaceShipTable(1);
+            if (_selectState == PlayerSelectState.Select)
+            {
+                RotateSpaceShipTable(1);
+            }
+            else if (_selectState == PlayerSelectState.Confirm)
+            {
+                OnClickBackToSpaceShipSelectButton();
+            }
         }
 
         private void GetSystemButtonC()
         {
-            OnClickSelectSpaceShipButton();
+            if (_selectState == PlayerSelectState.Select)
+            {
+                OnClickSelectSpaceShipButton();
+            }
+            else if (_selectState == PlayerSelectState.Confirm)
+            {
+                OnClickSpawnPlayerAndStartButton();
+            }
         }
 
         private void Update()
@@ -84,6 +113,18 @@ namespace _PCFinal
 
         public void Init()
         {
+            //カメラ座標の初期化
+            if (Camera.main != null)
+            {
+                var camTransform = Camera.main.transform;
+                var camPos = camTransform.position;
+                camPos.x = 0;
+                camPos.y = 0;
+                camPos.z = -25;
+                camTransform.position = camPos;
+            }
+
+            _selectState = PlayerSelectState.Select;
             UIParentTransform.gameObject.SetActive(true);
             playerControllers = new List<PlayerController>();
             
@@ -110,11 +151,6 @@ namespace _PCFinal
             
             playerControllers[_selectedIndex].gameObject.SetActive(true);
             StartCoroutine(LoadSpaceShipData(_networkManager.playerSpaceShipProfiles[_selectedIndex]));
-            
-            //各種ボタンにコールバックイベントを追加
-            selectSpaceShipButton.onClick.AddListener(OnClickSelectSpaceShipButton);
-            backToSelectSpaceShipButton.onClick.AddListener(OnClickBackToSpaceShipSelectButton);
-            startGameAndSpawnPlayerButton.onClick.AddListener(OnClickSpawnPlayerAndStartButton);
         }
         
         
@@ -160,11 +196,12 @@ namespace _PCFinal
             bulletNameText.text = " ";
             bulletExplanationText.text = " ";
             yield return new WaitForEndOfFrame();
-            
-            spaceShipNameText.DOText(profile.spaceShipName, 0.2f).SetEase(Ease.Linear);
-            spaceShipExplanationText.DOText(profile.GetSpaceShipExplanation(),1).SetEase(Ease.Linear);
-            bulletNameText.DOText(profile.bulletName,0.2f).SetEase(Ease.Linear);
-            bulletExplanationText.DOText(profile.bulletExplanation, 1).SetEase(Ease.Linear);
+
+            spaceShipNameText.DOText(profile.spaceShipName, profile.spaceShipName.Length * 0.02f);
+            spaceShipExplanationText.DOText(profile.GetSpaceShipExplanation(),
+                profile.GetSpaceShipExplanation().Length * 0.02f);
+            bulletNameText.DOText(profile.bulletName, profile.bulletName.Length * 0.02f);
+            bulletExplanationText.DOText(profile.bulletExplanation, profile.bulletExplanation.Length * 0.02f);
         }
 
         private void ResetTestPlayerPosition(ref GameObject target)
@@ -178,6 +215,7 @@ namespace _PCFinal
             isSpaceShipSelectMode = false;
             readyPanel.gameObject.SetActive(true);
             readyPanel.DOPunchScale(new Vector3(1.05f, 1.05f), 0.2f);
+            _selectState = PlayerSelectState.Confirm;
         }
         
         #endregion
@@ -187,6 +225,7 @@ namespace _PCFinal
         
         public void OnClickBackToSpaceShipSelectButton()
         {
+            _selectState = PlayerSelectState.Select;
             isSpaceShipSelectMode = true;
             readyPanel.DOPunchScale(new Vector3(-1.55f, 1.25f), 0.2f)
                 .OnComplete(() =>
@@ -197,12 +236,14 @@ namespace _PCFinal
         
         public void OnClickSpawnPlayerAndStartButton()
         {
+            Debug.Log("ClickSpawn");
             foreach (var controller in playerControllers)
             {
                 controller.Dispose();
 /*                Destroy(controller.gameObject);*/
             }
-            
+
+            readyPanel.gameObject.SetActive(false);
             UIParentTransform.gameObject.SetActive(false);
             
             var message = new MicroBattleMessage.SelectedPlayerData
